@@ -41,7 +41,7 @@ jobs:
 
       - name: Health check
         run: |
-          response=$(curl -sf http://localhost:5000/api/health)
+          response=$(curl -sf http://localhost:5001/api/health)
           echo "Response: $response"
           echo "$response" | grep -q '"status": "healthy"'
 
