@@ -25,11 +25,17 @@ jobs:
       - name: Start container
         run: docker run -d -p 5000:5000 --name events-api events-api:latest
 
-      - name: Health check
+      - name: Wait for container to be healthy
         run: |
-          response=$(curl -sf http://localhost:5000/api/health)
-          echo "Response: $response"
-          echo "$response" | grep -q '"status": "healthy"'
+          for i in $(seq 1 30); do                                                                                                                                                  
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' events-api)                                                                                                 
+            echo "Attempt $i: $STATUS"                                                                                                                                              
+            [ "$STATUS" = "healthy" ] && exit 0                                                                                                                                     
+            [ "$STATUS" = "unhealthy" ] && docker logs events-api && exit 1                                                                                                         
+            sleep 2                                                                                                                                                                 
+          done                                                                                                                                                                      
+          docker logs events-api                                                                                                                                                    
+          exit 1
 
       - name: Set up Python
         uses: actions/setup-python@v6
