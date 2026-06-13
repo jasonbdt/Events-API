@@ -177,3 +177,71 @@ def test_get_rsvps_for_event(base_url, auth_headers):
     assert "rsvps" in body
     assert "stats" in body
     assert body["stats"]["attending"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# Error / edge cases
+# ---------------------------------------------------------------------------
+
+def test_rsvp_private_event_without_auth_returns_401(base_url, auth_headers):
+    """A non-public event must reject unauthenticated RSVP attempts."""
+    payload = {
+        "title": f"Private Event {int(time.time() * 1000)}",
+        "date": "2027-12-01T20:00:00",
+        "is_public": False,
+    }
+    event_id = requests.post(f"{base_url}/api/events", json=payload, headers=auth_headers).json()["id"]
+
+    resp = requests.post(f"{base_url}/api/rsvps/event/{event_id}", json={"attending": True})
+    assert resp.status_code == 401
+    assert "error" in resp.json()
+
+
+def test_rsvp_admin_only_event_as_regular_user_returns_403(base_url, auth_headers):
+    """An admin-only event must return 403 when a non-admin user tries to RSVP."""
+    payload = {
+        "title": f"Admin Event {int(time.time() * 1000)}",
+        "date": "2027-12-02T20:00:00",
+        "is_public": True,
+        "requires_admin": True,
+    }
+    event_id = requests.post(f"{base_url}/api/events", json=payload, headers=auth_headers).json()["id"]
+
+    # A second, freshly registered user is also a regular (non-admin) user
+    _, other_token = _register_and_login(base_url, prefix="regular")
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+
+    resp = requests.post(f"{base_url}/api/rsvps/event/{event_id}", json={"attending": True}, headers=other_headers)
+    assert resp.status_code == 403
+    assert "error" in resp.json()
+
+
+def test_rsvp_event_at_full_capacity_returns_400(base_url, auth_headers):
+    """Once an event reaches capacity, further RSVPs must return 400."""
+    payload = {
+        "title": f"Tiny Event {int(time.time() * 1000)}",
+        "date": "2027-12-03T20:00:00",
+        "is_public": True,
+        "capacity": 1,
+    }
+    event_id = requests.post(f"{base_url}/api/events", json=payload, headers=auth_headers).json()["id"]
+
+    # First RSVP fills the single slot
+    resp1 = requests.post(f"{base_url}/api/rsvps/event/{event_id}", json={"attending": True}, headers=auth_headers)
+    assert resp1.status_code == 201
+
+    # A second user tries to RSVP — event is now full
+    _, other_token = _register_and_login(base_url, prefix="lateuser")
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+
+    resp2 = requests.post(f"{base_url}/api/rsvps/event/{event_id}", json={"attending": True}, headers=other_headers)
+    assert resp2.status_code == 400
+    assert "error" in resp2.json()
+
+
+def test_create_event_with_invalid_date_format_returns_400(base_url, auth_headers):
+    """A malformed date string must be rejected with 400, not cause a server error."""
+    payload = {"title": "Bad Date Event", "date": "not-a-date"}
+    resp = requests.post(f"{base_url}/api/events", json=payload, headers=auth_headers)
+    assert resp.status_code == 400
+    assert "error" in resp.json()
