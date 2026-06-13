@@ -102,6 +102,6 @@ jobs:
 
       - name: Smoke test
         run: |
-          response=$(curl -sf "${{ secrets.RENDER_BASE }}/api/health")
+          response=$(curl -sf "${{ secrets.RENDER_BASE_FAIL }}/api/health")
           echo "Response: $response"
           echo "$response" | grep -q '"status": "healthy"'
