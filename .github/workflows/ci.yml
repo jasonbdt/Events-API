@@ -57,3 +57,11 @@ jobs:
         env:
           BASE_URL: http://localhost:5000
         run: pytest -v
+
+      - name: Print container logs
+        if: always()
+        run: docker logs events-api || true
+
+      - name: Stop and remove container
+        if: always()
+        run: docker rm -f events-api || true
