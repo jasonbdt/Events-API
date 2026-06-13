@@ -1,8 +1,9 @@
+import os
 import time
 import pytest
 import requests
 
-BASE_URL = "http://localhost:5001"
+BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 
 
 @pytest.fixture(scope="session")

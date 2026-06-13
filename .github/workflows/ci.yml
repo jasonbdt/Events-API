@@ -44,3 +44,16 @@ jobs:
           response=$(curl -sf http://localhost:5000/api/health)
           echo "Response: $response"
           echo "$response" | grep -q '"status": "healthy"'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run test suite
+        env:
+          BASE_URL: http://localhost:5000
+        run: pytest -v
